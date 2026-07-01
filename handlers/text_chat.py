@@ -1,6 +1,7 @@
 from aiogram import Router, Bot, types
 from aiogram.filters import CommandStart
 
+from config import HISTORY_LIMIT
 from database import save_message, get_history, get_user_profile, update_user_name, append_user_fact
 from services.ai_text import get_ai_reply, extract_profile_update, build_system_prompt
 
@@ -37,7 +38,7 @@ async def handle_message(message: types.Message, bot: Bot):
 
     profile = get_user_profile(user_id)
     system_prompt = build_system_prompt(profile)
-    history = get_history(user_id, limit=8)  # было 15 — уменьшили для экономии токенов
+    history = get_history(user_id, limit=HISTORY_LIMIT)
 
     messages = [{"role": "system", "content": system_prompt}] + history
 

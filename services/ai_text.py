@@ -1,10 +1,13 @@
 import json
+import logging
+
 from openai import OpenAI
 
 from persona import PERSONA_PROMPT
 
-from config import AI_API_KEY, AI_BASE_URL, AI_MODEL
+from config import AI_API_KEY, AI_BASE_URL, AI_MODEL, AI_MODEL_FAST
 
+logger = logging.getLogger(__name__)
 ai_client = OpenAI(api_key=AI_API_KEY, base_url=AI_BASE_URL)
 
 
@@ -17,15 +20,16 @@ def get_ai_reply(messages: list[dict[str, str]]) -> str:
             max_tokens=250,  # жёсткий потолок длины ответа — экономит токены
         )
         return response.choices[0].message.content or "Не удалось получить ответ."
-    except Exception as e:
-        return f"Произошла ошибка: {e}"
+    except Exception:
+        logger.exception("AI text request failed")
+        return "Не удалось обработать запрос, попробуйте позже."
 
 
 def extract_profile_update(user_text: str) -> dict[str, str]:
     """Проверяет сообщение на наличие имени/фактов о пользователе."""
     try:
         response = ai_client.chat.completions.create(
-            model=AI_MODEL,
+            model=AI_MODEL_FAST,
             messages=[
                 {
                     "role": "system",
@@ -51,6 +55,7 @@ def extract_profile_update(user_text: str) -> dict[str, str]:
             "fact": data.get("fact", "") or "",
         }
     except Exception:
+        logger.exception("Profile extraction failed")
         return {"name": "", "fact": ""}
 
 
