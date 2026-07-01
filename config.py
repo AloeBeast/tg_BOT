@@ -14,3 +14,11 @@ HISTORY_LIMIT = int(os.getenv("HISTORY_LIMIT", "8"))
 
 if not BOT_TOKEN or not AI_API_KEY or not AI_BASE_URL:
     raise ValueError("Не найдены BOT_TOKEN / AI_API_KEY / AI_BASE_URL. Проверь файл .env")
+
+AI_CHAT_TIMEOUT_SECONDS = float(os.getenv("AI_CHAT_TIMEOUT_SECONDS", "30"))
+AI_VISION_TIMEOUT_SECONDS = float(os.getenv("AI_VISION_TIMEOUT_SECONDS", "30"))
+AI_RETRY_COUNT = int(os.getenv("AI_RETRY_COUNT", "1"))
+PHOTO_RATE_LIMIT_SECONDS = float(os.getenv("PHOTO_RATE_LIMIT_SECONDS", "15"))
+MIN_IMAGE_BYTES = int(os.getenv("MIN_IMAGE_BYTES", "10240"))
+MAX_IMAGE_BYTES = int(os.getenv("MAX_IMAGE_BYTES", "5242880"))
+VISION_CACHE_MAX_ITEMS = int(os.getenv("VISION_CACHE_MAX_ITEMS", "256"))
