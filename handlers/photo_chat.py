@@ -1,9 +1,13 @@
+import logging
+
 from aiogram import Router, Bot, F, types
 
+from config import HISTORY_LIMIT
 from database import save_message, get_history, get_user_profile
 from services.ai_text import get_ai_reply, build_system_prompt
 from services.ai_vision import describe_image
 
+logger = logging.getLogger(__name__)
 router = Router()
 
 
@@ -35,18 +39,9 @@ async def handle_photo(message: types.Message, bot: Bot):
 
     image_bytes = file_bytes_io.read()
 
-    # ВРЕМЕННО: сохраняем фото на диск, чтобы проверить, что оно скачалось нормально
-    with open("debug_photo.jpg", "wb") as f:
-        f.write(image_bytes)
-
     # Шаг 1: получаем описание фото от vision-модели
     description = describe_image(image_bytes)
-
-    # Шаг 1: получаем описание фото от vision-модели
-    description = describe_image(image_bytes)
-    print("=== DEBUG: описание от Vision-модели ===")
-    print(description)
-    print("=========================================")
+    logger.debug("Vision description: %s", description)
 
     # Пользователь мог добавить подпись к фото — учитываем её
     caption = message.caption or ""
@@ -61,7 +56,7 @@ async def handle_photo(message: types.Message, bot: Bot):
     # Шаг 2: основная модель (Виктор) комментирует фото в своём стиле
     profile = get_user_profile(user_id)
     system_prompt = build_system_prompt(profile)
-    history = get_history(user_id, limit=8)
+    history = get_history(user_id, limit=HISTORY_LIMIT)
 
     messages = [{"role": "system", "content": system_prompt}] + history
 

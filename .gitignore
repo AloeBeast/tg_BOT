@@ -1,3 +1,16 @@
 venv/
 .env
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+bot_database.db
+*.sqlite
+*.sqlite3
+debug_photo.jpg

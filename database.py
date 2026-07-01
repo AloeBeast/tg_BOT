@@ -1,5 +1,7 @@
 import sqlite3
 
+from config import HISTORY_LIMIT
+
 DB_NAME = "bot_database.db"
 
 
@@ -42,7 +44,7 @@ def save_message(user_id: int, role: str, content: str):
     conn.close()
 
 
-def get_history(user_id: int, limit: int = 15) -> list[dict[str, str]]:
+def get_history(user_id: int, limit: int = HISTORY_LIMIT) -> list[dict[str, str]]:
     """Достаёт последние N сообщений пользователя в хронологическом порядке."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -75,10 +77,17 @@ def get_user_profile(user_id: int) -> dict[str, str]:
 
 
 def update_user_name(user_id: int, name: str):
-    """Обновляет имя пользователя."""
+    """Обновляет имя пользователя, создавая профиль при необходимости."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute("UPDATE users SET name = ? WHERE user_id = ?", (name, user_id))
+    cursor.execute(
+        """
+        INSERT INTO users (user_id, name, facts)
+        VALUES (?, ?, '')
+        ON CONFLICT(user_id) DO UPDATE SET name = excluded.name
+        """,
+        (user_id, name),
+    )
     conn.commit()
     conn.close()
 
@@ -89,7 +98,12 @@ def append_user_fact(user_id: int, new_fact: str, max_facts: int = 8):
     cursor = conn.cursor()
     cursor.execute("SELECT facts FROM users WHERE user_id = ?", (user_id,))
     row = cursor.fetchone()
-    current_facts = row[0] if row else ""
+
+    if row is None:
+        cursor.execute("INSERT INTO users (user_id, name, facts) VALUES (?, '', '')", (user_id,))
+        current_facts = ""
+    else:
+        current_facts = row[0] or ""
 
     facts_list = [f.strip("- ").strip() for f in current_facts.split("\n") if f.strip()]
     facts_list.append(new_fact)
