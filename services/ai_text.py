@@ -5,7 +5,7 @@ from openai import OpenAI
 
 from persona import PERSONA_PROMPT
 
-from config import AI_API_KEY, AI_BASE_URL, AI_MODEL, AI_MODEL_FAST
+from config import AI_API_KEY, AI_BASE_URL, AI_MODEL, AI_MODEL_FAST, AI_CHAT_TIMEOUT_SECONDS
 
 logger = logging.getLogger(__name__)
 ai_client = OpenAI(api_key=AI_API_KEY, base_url=AI_BASE_URL)
@@ -13,16 +13,13 @@ ai_client = OpenAI(api_key=AI_API_KEY, base_url=AI_BASE_URL)
 
 def get_ai_reply(messages: list[dict[str, str]]) -> str:
     """Отправляет историю сообщений нейросети и возвращает текстовый ответ."""
-    try:
-        response = ai_client.chat.completions.create(
-            model=AI_MODEL,
-            messages=messages,  # type: ignore[arg-type]
-            max_tokens=250,  # жёсткий потолок длины ответа — экономит токены
-        )
-        return response.choices[0].message.content or "Не удалось получить ответ."
-    except Exception:
-        logger.exception("AI text request failed")
-        return "Не удалось обработать запрос, попробуйте позже."
+    response = ai_client.chat.completions.create(
+        model=AI_MODEL,
+        messages=messages,  # type: ignore[arg-type]
+        max_tokens=250,  # жёсткий потолок длины ответа — экономит токены
+        timeout=AI_CHAT_TIMEOUT_SECONDS,
+    )
+    return response.choices[0].message.content or "Не удалось получить ответ."
 
 
 def extract_profile_update(user_text: str) -> dict[str, str]:
@@ -46,6 +43,7 @@ def extract_profile_update(user_text: str) -> dict[str, str]:
                 {"role": "user", "content": user_text},
             ],
             max_tokens=100,
+            timeout=AI_CHAT_TIMEOUT_SECONDS,
         )
         raw = response.choices[0].message.content or "{}"
         raw = raw.replace("```json", "").replace("```", "").strip()
