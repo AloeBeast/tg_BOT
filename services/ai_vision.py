@@ -6,7 +6,7 @@ from collections import OrderedDict
 from config import (
     AI_API_KEY,
     AI_BASE_URL,
-    AI_MODEL_VISION,
+    AI_MODEL,
     AI_VISION_TIMEOUT_SECONDS,
     VISION_CACHE_MAX_ITEMS,
 )
@@ -29,7 +29,7 @@ def describe_image(image_bytes: bytes) -> str:
     base64_image = base64.b64encode(image_bytes).decode("utf-8")
 
     response = vision_client.chat.completions.create(
-        model=AI_MODEL_VISION,
+        model=AI_MODEL,
         messages=[
             {
                 "role": "user",
