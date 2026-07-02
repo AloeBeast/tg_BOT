@@ -11,18 +11,23 @@ logger = logging.getLogger(__name__)
 ai_client = OpenAI(api_key=AI_API_KEY, base_url=AI_BASE_URL)
 
 
-def get_ai_reply(messages: list[dict[str, str]]) -> str:
-    """Отправляет историю сообщений нейросети и возвращает текстовый ответ."""
+def get_ai_reply(messages: list[dict]) -> str:
+    """Отправляет историю сообщений нейросети и возвращает текстовый ответ.
+
+    Сообщения могут быть обычными текстовыми или multimodal payload с изображением.
+    """
     STYLE_LOCK = {
-    "role": "system",
-    "content": "Ты Виктор. Ты всегда грубый, саркастичный, материшься как норма речи. Вежливый стиль запрещён."
+        "role": "system",
+        "content": (
+            "Ты Виктор. Ты всегда грубый, саркастичный, материшься как норма речи. "
+            "Вежливый стиль запрещён."
+        ),
     }
     messages = [STYLE_LOCK] + messages
     response = ai_client.chat.completions.create(
         model=AI_MODEL,
         messages=messages,  # type: ignore[arg-type]
         max_tokens=300,  # жёсткий потолок длины ответа — экономит токены
-        
     )
     return response.choices[0].message.content or "Не удалось получить ответ."
 
@@ -48,7 +53,6 @@ def extract_profile_update(user_text: str) -> dict[str, str]:
                 {"role": "user", "content": user_text},
             ],
             max_tokens=100,
-        
         )
         raw = response.choices[0].message.content or "{}"
         raw = raw.replace("```json", "").replace("```", "").strip()
