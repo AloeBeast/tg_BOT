@@ -4,6 +4,7 @@ import logging
 from aiogram import Router, Bot, types
 from aiogram.filters import CommandStart
 
+
 from config import AI_CHAT_TIMEOUT_SECONDS, AI_RETRY_COUNT, HISTORY_LIMIT
 from database import save_message, get_history, get_user_profile, update_user_name, append_user_fact
 from services.ai_client import AI_FALLBACK_MESSAGE, safe_chat_completion
@@ -11,6 +12,7 @@ from services.ai_text import get_ai_reply, extract_profile_update, build_system_
 
 logger = logging.getLogger(__name__)
 router = Router()
+
 
 
 @router.message(CommandStart())

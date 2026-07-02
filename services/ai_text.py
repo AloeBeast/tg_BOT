@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 ai_client = OpenAI(api_key=AI_API_KEY, base_url=AI_BASE_URL)
 
 
-def get_ai_reply(messages: list[dict]) -> str:
+def get_ai_reply(messages: list[dict[str, str]]) -> str:
     """Отправляет историю сообщений нейросети и возвращает текстовый ответ.
 
     Сообщения могут быть обычными текстовыми или multimodal payload с изображением.

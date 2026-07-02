@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import logging
+from typing import Any
 
 from aiogram import Router, Bot, F, types
 
@@ -118,7 +119,9 @@ async def handle_photo(message: types.Message, bot: Bot):
         system_prompt = build_system_prompt(profile)
         history = get_history(user_id, limit=HISTORY_LIMIT)
 
-        messages = [{"role": "system", "content": system_prompt}] + history
+        messages: list[dict[str, Any]] = [
+          {"role": "system", "content": system_prompt}, *history,]
+        
         messages.append({"role": "user", "content": _build_image_message(image_bytes, caption)})
 
         ai_answer = await safe_chat_completion(

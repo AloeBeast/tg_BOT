@@ -31,7 +31,7 @@ def _get_float_env(name: str, default: float) -> float:
 BOT_TOKEN = _get_required_env("BOT_TOKEN")
 AI_API_KEY = _get_required_env("AI_API_KEY")
 AI_BASE_URL = _get_required_env("AI_BASE_URL")
-AI_MODEL = os.getenv("AI_MODEL", "qwen3.7-plus")
+AI_MODEL = os.getenv("AI_MODEL", "mistral-medium-3.1")
 DEBUG_MODE = os.getenv("DEBUG_MODE", "false").lower() in {"1", "true", "yes", "on"}
 HISTORY_LIMIT = _get_int_env("HISTORY_LIMIT", 8)
 AI_CHAT_TIMEOUT_SECONDS = _get_float_env("AI_CHAT_TIMEOUT_SECONDS", 30)
