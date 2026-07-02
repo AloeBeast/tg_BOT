@@ -57,23 +57,6 @@ async def safe_chat_completion(
     )
 
 
-async def safe_vision_call(
-    operation: Callable[[], str],
-    *,
-    timeout_seconds: float,
-    fallback: str = AI_FALLBACK_MESSAGE,
-    retries: int = 1,
-) -> str:
-    """Safely executes a vision call without blocking handlers."""
-    return await _run_with_retry(
-        operation,
-        operation_name="AI vision call",
-        timeout_seconds=timeout_seconds,
-        fallback=fallback,
-        retries=retries,
-    )
-
-
 class UserRateLimiter:
     """Simple in-memory per-user cooldown limiter."""
 

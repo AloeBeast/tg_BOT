@@ -1,3 +1,5 @@
+import asyncio
+import base64
 import logging
 
 from aiogram import Router, Bot, F, types
@@ -5,25 +7,51 @@ from aiogram import Router, Bot, F, types
 from config import (
     AI_CHAT_TIMEOUT_SECONDS,
     AI_RETRY_COUNT,
-    AI_VISION_TIMEOUT_SECONDS,
     HISTORY_LIMIT,
     MAX_IMAGE_BYTES,
     MIN_IMAGE_BYTES,
     PHOTO_RATE_LIMIT_SECONDS,
 )
-from database import save_message, get_history, get_user_profile
+from database import (
+    append_user_fact,
+    get_history,
+    get_user_profile,
+    save_message,
+    update_user_name,
+)
 from services.ai_client import (
     AI_FALLBACK_MESSAGE,
     UserRateLimiter,
     safe_chat_completion,
-    safe_vision_call,
 )
-from services.ai_text import get_ai_reply, build_system_prompt
-from services.ai_vision import describe_image
+from services.ai_text import (
+    build_system_prompt,
+    extract_profile_update,
+    get_ai_reply,
+)
 
 logger = logging.getLogger(__name__)
 router = Router()
 _photo_rate_limiter = UserRateLimiter(PHOTO_RATE_LIMIT_SECONDS)
+
+
+def _build_image_message(image_bytes: bytes, caption: str) -> list[dict[str, object]]:
+    """Builds a multimodal OpenAI-compatible message content payload."""
+    base64_image = base64.b64encode(image_bytes).decode("utf-8")
+    user_text = caption.strip() or "Ответь на сообщение пользователя, учитывая изображение."
+
+    return [
+        {
+            "type": "text",
+            "text": user_text,
+        },
+        {
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:image/jpeg;base64,{base64_image}",
+            },
+        },
+    ]
 
 
 @router.message(F.photo)
@@ -70,34 +98,28 @@ async def handle_photo(message: types.Message, bot: Bot):
             await message.answer("Фото слишком большое, отправь изображение поменьше")
             return
 
-        # Шаг 1: получаем описание фото от vision-модели без блокировки event loop
-        description = await safe_vision_call(
-            lambda: describe_image(image_bytes),
-            timeout_seconds=AI_VISION_TIMEOUT_SECONDS,
-            retries=AI_RETRY_COUNT,
-        )
-        logger.debug("Vision description: %s", description)
-
-        if description == AI_FALLBACK_MESSAGE:
-            await message.answer(AI_FALLBACK_MESSAGE)
-            return
-
-        # Пользователь мог добавить подпись к фото — учитываем её
         caption = message.caption or ""
+        if caption.strip():
+            try:
+                update = await asyncio.wait_for(
+                    asyncio.to_thread(extract_profile_update, caption),
+                    timeout=AI_CHAT_TIMEOUT_SECONDS,
+                )
+            except Exception:
+                logger.exception("Profile extraction for photo caption failed")
+                update = {"name": "", "fact": ""}
 
-        user_note = f" Подпись пользователя к фото: {caption}" if caption else ""
+            if update["name"]:
+                update_user_name(user_id, update["name"])
+            if update["fact"]:
+                append_user_fact(user_id, update["fact"])
 
-        combined_message = f"[Пользователь прислал фото. Вот его описание: {description}]{user_note}"
-
-        # Сохраняем в историю как обычное сообщение пользователя
-        save_message(user_id, "user", combined_message)
-
-        # Шаг 2: основная модель (Виктор) комментирует фото в своём стиле
         profile = get_user_profile(user_id)
         system_prompt = build_system_prompt(profile)
         history = get_history(user_id, limit=HISTORY_LIMIT)
 
         messages = [{"role": "system", "content": system_prompt}] + history
+        messages.append({"role": "user", "content": _build_image_message(image_bytes, caption)})
 
         ai_answer = await safe_chat_completion(
             lambda: get_ai_reply(messages),
@@ -105,6 +127,8 @@ async def handle_photo(message: types.Message, bot: Bot):
             retries=AI_RETRY_COUNT,
         )
 
+        saved_text = caption.strip() or "[Пользователь прислал фото без подписи]"
+        save_message(user_id, "user", f"[Фото] {saved_text}")
         save_message(user_id, "assistant", ai_answer)
 
         await message.answer(ai_answer)
