@@ -1,8 +1,10 @@
 import asyncio
+import json
 import logging
-import time
 from collections.abc import Callable
 from typing import TypeVar
+
+from services.redis_client import get_redis
 
 AI_FALLBACK_MESSAGE = "Не удалось обработать запрос, попробуй позже"
 
@@ -58,17 +60,40 @@ async def safe_chat_completion(
 
 
 class UserRateLimiter:
-    """Simple in-memory per-user cooldown limiter."""
+    """Redis-backed per-user cooldown limiter."""
 
-    def __init__(self, cooldown_seconds: float):
-        self.cooldown_seconds = cooldown_seconds
-        self._last_seen: dict[int, float] = {}
+    def __init__(self, cooldown_seconds: float, prefix: str = "rl"):
+        self.cooldown_seconds = int(cooldown_seconds)
+        self.prefix = prefix
 
-    def is_allowed(self, user_id: int) -> bool:
-        now = time.monotonic()
-        last_seen = self._last_seen.get(user_id)
-        if last_seen is not None and now - last_seen < self.cooldown_seconds:
-            return False
+    async def is_allowed(self, user_id: int) -> bool:
+        key = f"{self.prefix}:{user_id}"
+        r = get_redis()
+        current = await r.incr(key)
+        if current == 1:
+            await r.expire(key, self.cooldown_seconds)
+        return current == 1
 
-        self._last_seen[user_id] = now
-        return True
+
+PROFILE_CACHE_TTL = 300
+
+
+async def get_cached_profile(user_id: int) -> dict[str, str] | None:
+    key = f"profile:{user_id}"
+    r = get_redis()
+    data = await r.get(key)
+    if data:
+        return json.loads(data)
+    return None
+
+
+async def set_cached_profile(user_id: int, profile: dict[str, str]) -> None:
+    key = f"profile:{user_id}"
+    r = get_redis()
+    await r.set(key, json.dumps(profile), ex=PROFILE_CACHE_TTL)
+
+
+async def invalidate_cached_profile(user_id: int) -> None:
+    key = f"profile:{user_id}"
+    r = get_redis()
+    await r.delete(key)

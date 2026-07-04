@@ -28,6 +28,7 @@ AI_BASE_URL=https://example.com/v1
 AI_MODEL=glm-5v-turbo
 DEBUG_MODE=false
 HISTORY_LIMIT=8
+DATABASE_URL=postgresql://bot:password@localhost:5432/bot_db
 ```
 
 Если одна из обязательных переменных `BOT_TOKEN`, `AI_API_KEY` или `AI_BASE_URL` отсутствует, `config.py` выбросит `ValueError` при импорте.
@@ -56,31 +57,37 @@ HISTORY_LIMIT=8
 
 ## Работа с базой данных
 
-База данных — SQLite-файл `bot_database.db`, имя задано в `database.py` как `DB_NAME`.
+База данных — PostgreSQL. Подключение настраивается через переменную окружения `DATABASE_URL`. Для локальной разработки поднять PostgreSQL одной командой: `docker compose up -d`.
 
-При инициализации создаются две таблицы:
+Пул соединений (`asyncpg.Pool`) создаётся при старте бота функцией `init_pool()` и закрывается при остановке через `close_pool()` (в `main.py` через `try/finally`). Размеры пула настраиваются: `DB_POOL_MIN` (по умолчанию 5), `DB_POOL_MAX` (по умолчанию 20). Все функции БД — асинхронные (`async def`).
+
+При инициализации (`init_db()`) создаются две таблицы и индекс:
 
 ### `messages`
 
 Хранит историю сообщений:
 
-- `id` — автоинкрементный первичный ключ;
-- `user_id` — Telegram ID пользователя;
+- `id` — `BIGSERIAL` первичный ключ;
+- `user_id` — `BIGINT`, Telegram ID пользователя;
 - `role` — роль сообщения (`user` или `assistant`);
 - `content` — текст сообщения;
-- `timestamp` — время создания, по умолчанию `CURRENT_TIMESTAMP`.
+- `created_at` — `TIMESTAMPTZ`, время создания, по умолчанию `NOW()`.
+
+Индекс: `idx_messages_user_id_id` на `(user_id, id DESC)` — ускоряет выборку истории.
 
 ### `users`
 
 Хранит простой профиль пользователя:
 
-- `user_id` — Telegram ID пользователя, первичный ключ;
+- `user_id` — `BIGINT`, Telegram ID пользователя, первичный ключ;
 - `name` — имя пользователя, если оно было извлечено из сообщений;
-- `facts` — список кратких фактов о пользователе текстом.
+- `facts` — список кратких фактов о пользователе текстом;
+- `created_at` / `updated_at` — `TIMESTAMPTZ`, временные метки.
 
 Основные функции:
 
-- `init_db()` — создаёт таблицы;
+- `init_pool()` / `close_pool()` — управление пулом соединений;
+- `init_db()` — создаёт таблицы и индексы;
 - `save_message()` — сохраняет одно сообщение;
 - `get_history()` — возвращает последние сообщения пользователя в хронологическом порядке;
 - `get_user_profile()` — получает или создаёт профиль пользователя;
@@ -140,9 +147,10 @@ HISTORY_LIMIT=8
 
 - `aiogram`;
 - `openai`;
-- `python-dotenv`.
+- `python-dotenv`;
+- `asyncpg`.
 
-`sqlite3`, `asyncio`, `base64`, `json`, `os` — из стандартной библиотеки Python.
+`asyncio`, `base64`, `json`, `os` — из стандартной библиотеки Python.
 
 ## Текущие особенности и технический долг
 

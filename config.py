@@ -39,3 +39,21 @@ AI_RETRY_COUNT = _get_int_env("AI_RETRY_COUNT", 1)
 PHOTO_RATE_LIMIT_SECONDS = _get_float_env("PHOTO_RATE_LIMIT_SECONDS", 15)
 MIN_IMAGE_BYTES = _get_int_env("MIN_IMAGE_BYTES", 10240)
 MAX_IMAGE_BYTES = _get_int_env("MAX_IMAGE_BYTES", 5242880)
+DATABASE_URL = _get_required_env("DATABASE_URL")
+DB_POOL_MIN = _get_int_env("DB_POOL_MIN", 5)
+DB_POOL_MAX = _get_int_env("DB_POOL_MAX", 20)
+REDIS_URL = _get_required_env("REDIS_URL")
+TEXT_RATE_LIMIT_SECONDS = _get_float_env("TEXT_RATE_LIMIT_SECONDS", 2)
+
+
+def _get_int_list_env(name: str, default: list[int]) -> list[int]:
+    raw_value = os.getenv(name, "")
+    if not raw_value.strip():
+        return default
+    try:
+        return [int(x.strip()) for x in raw_value.split(",") if x.strip()]
+    except ValueError as exc:
+        raise ValueError(f"Переменная {name} должна быть списком чисел через запятую, сейчас: {raw_value!r}") from exc
+
+
+ADMIN_IDS = _get_int_list_env("ADMIN_IDS", [])
